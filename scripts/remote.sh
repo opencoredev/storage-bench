@@ -28,7 +28,7 @@ railway_quiet() {
 }
 
 bundle() {
-  tar czf /tmp/storage-bench.tgz package.json package-lock.json tsconfig.json src
+  tar czf /tmp/storage-bench.tgz package.json package-lock.json tsconfig.json src scripts/patch-upstash-blob.mjs
 }
 
 # Runs a shell snippet in the location's benchmark directory, with credentials loaded.

@@ -15,9 +15,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Object storage benchmark: S3, R2, Railway, Backblaze B2, Neon",
+  title: "Object storage benchmark: S3, R2, Railway, Backblaze B2, Neon, Bunny, Appwrite, Convex, Upstash",
   description:
-    "Five object storage providers measured through one SDK from six locations: uploads, downloads, first bytes, cold starts, listing, failures, and monthly cost.",
+    "Nine object storage providers measured through one SDK from six locations: uploads, downloads, first bytes, cold starts, listing, failures, and monthly cost.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

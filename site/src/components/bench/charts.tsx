@@ -11,6 +11,10 @@ export const PROVIDER_COLORS: Record<string, string> = {
   railway: "oklch(0.68 0.19 300)",
   b2: "oklch(0.65 0.2 25)",
   neon: "oklch(0.8 0.16 160)",
+  bunny: "oklch(0.68 0.16 255)",
+  appwrite: "oklch(0.72 0.19 350)",
+  convex: "oklch(0.8 0.12 200)",
+  upstash: "oklch(0.78 0.17 135)",
 };
 export const colorOf = (providerId: string) => PROVIDER_COLORS[providerId] ?? "var(--muted-foreground)";
 

@@ -42,6 +42,8 @@ export const providerInfo: Record<ProviderId, { label: string; place: string; re
   bunny: { label: "Bunny Storage", place: "New York", region: "ny", at: [40.71, -74.01] },
   appwrite: { label: "Appwrite", place: "New York", region: "nyc", at: [40.71, -74.01] },
   convex: { label: "Convex", place: "Virginia", region: "aws us-east-1", at: [39.04, -77.49] },
+  // Global bucket on Cloudflare R2 with no region to choose, so there is no point to put on a map.
+  upstash: { label: "Upstash Blob", place: "Global", region: "no region choice", at: null },
 };
 
 export const clientIds = ["railway-ashburn", "ms-a2", "freestyle-sf", "tenki-seattle", "railway-amsterdam", "boat-lille"] as const;

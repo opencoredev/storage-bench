@@ -130,7 +130,7 @@ export function BenchPage({ results }: { results: Results }) {
       </header>
 
       <h1 className="pt-8 pb-6 text-2xl font-medium tracking-[-0.02em] text-balance md:text-3xl">
-        S3, R2, Railway, Backblaze and Neon, measured from {clients.length} places
+        {providers.length} object storage providers, measured from {clients.length} places
       </h1>
 
       <div className="sticky top-0 z-10 -mx-5 bg-background/95 px-5 py-3 backdrop-blur md:-mx-8 md:px-8">

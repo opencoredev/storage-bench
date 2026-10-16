@@ -10,7 +10,8 @@
     "typecheck": "tsc -p .",
     "start": "node idle.mjs",
     "costs": "node --experimental-strip-types src/costs.ts",
-    "site:data": "node --experimental-strip-types src/site-data.ts"
+    "site:data": "node --experimental-strip-types src/site-data.ts",
+    "postinstall": "node scripts/patch-upstash-blob.mjs"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +23,7 @@
     "@aws-sdk/lib-storage": "3.1148.0",
     "@aws-sdk/s3-presigned-post": "3.1148.0",
     "@aws-sdk/s3-request-presigner": "3.1148.0",
+    "@upstash/blob": "0.0.11",
     "files-sdk": "3.0.0",
     "node-appwrite": "29.2.0",
     "undici": "6.29.0",

@@ -6,8 +6,9 @@ import { r2 } from "files-sdk/r2";
 import { s3 } from "files-sdk/s3";
 import { z } from "zod";
 import { convexHttp } from "./convex-http.ts";
+import { upstashBlob } from "./upstash-blob.ts";
 
-export const providerIds = ["aws-s3", "r2", "railway", "b2", "neon", "bunny", "appwrite", "convex"] as const;
+export const providerIds = ["aws-s3", "r2", "railway", "b2", "neon", "bunny", "appwrite", "convex", "upstash"] as const;
 export type ProviderId = (typeof providerIds)[number];
 
 export type Provider = {
@@ -75,6 +76,9 @@ const specs = {
     CONVEX_SITE_URL: z.url(),
     CONVEX_BENCH_TOKEN: nonEmpty,
     CONVEX_REGION: z.string().default("aws-us-east-1"),
+  }),
+  upstash: z.object({
+    UPSTASH_BLOB_TOKEN: nonEmpty,
   }),
 } satisfies Record<ProviderId, z.ZodType>;
 
@@ -243,6 +247,18 @@ const build = (id: ProviderId, env: Env): Provider | undefined => {
         connect: () => new Files({ retries: 0, adapter: convexHttp({ siteUrl: v.CONVEX_SITE_URL, token: v.CONVEX_BENCH_TOKEN }) }),
         // Convex assigns storage ids, which can't be listed by a caller-chosen prefix.
         canList: false,
+      };
+    }
+    case "upstash": {
+      const e = specs.upstash.safeParse(env);
+      if (!e.success) return undefined;
+      const v = e.data;
+      return {
+        id,
+        label: "Upstash Blob",
+        // Upstash has no region to pick: buckets are global, on Cloudflare R2, with reads replicated to its CDN.
+        region: "global",
+        connect: () => new Files({ retries: 0, adapter: upstashBlob({ token: v.UPSTASH_BLOB_TOKEN }) }),
       };
     }
     default: {

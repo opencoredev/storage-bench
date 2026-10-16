@@ -124,6 +124,13 @@ const prices: readonly Price[] = [
       "$25 per developer per month with 100 GB file storage, 50 GB egress, and 25M function calls, then $0.03/GB stored, $0.12/GB served, and $2 per 1M calls. Each upload costs one function call to mint its upload URL; reads from file URLs are not function calls",
     monthly: (w) => 25 + over(w.storedGb, 100) * 0.03 + over(w.egressGb, 50) * 0.12 + (over(w.writes, 25e6) / 1e6) * 2,
   },
+  {
+    id: "upstash",
+    label: "Upstash Blob (pay as you go)",
+    source: "https://upstash.com/pricing/blob, checked 2026-10-16",
+    model: "$0.02/GB-month, $4.50 per 1M writes, $0.30 per 1M reads, egress free up to 1 TB/month then $0.02/GB",
+    monthly: (w) => w.storedGb * 0.02 + (w.writes / 1e6) * 4.5 + (w.reads / 1e6) * 0.3 + over(w.egressGb, 1_000) * 0.02,
+  },
 ];
 
 const usd = (n: number): string => (n >= 100 ? `$${Math.round(n).toLocaleString("en-US")}` : `$${n.toFixed(2)}`);
