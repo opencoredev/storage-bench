@@ -44,6 +44,8 @@ export const providerInfo: Record<ProviderId, { label: string; place: string; re
   convex: { label: "Convex", place: "Virginia", region: "aws us-east-1", at: [39.04, -77.49] },
   // Global bucket on Cloudflare R2 with no region to choose, so there is no point to put on a map.
   upstash: { label: "Upstash Blob", place: "Global", region: "no region choice", at: null },
+  // Tigris's default global bucket places data near where it is read, so it has no single point either.
+  tigris: { label: "Tigris", place: "Global", region: "global (default)", at: null },
 };
 
 export const clientIds = ["railway-ashburn", "ms-a2", "freestyle-sf", "tenki-seattle", "railway-amsterdam", "boat-lille"] as const;

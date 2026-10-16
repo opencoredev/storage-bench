@@ -14,7 +14,7 @@ passes=${1:?passes}
 shift
 locations=("$@")
 version=$(git rev-parse --short HEAD)
-providers=aws-s3,r2,railway,b2,neon,bunny,appwrite,convex,upstash
+providers=aws-s3,r2,railway,b2,neon,bunny,appwrite,convex,upstash,tigris
 # Names this campaign's passes, so a new campaign never mistakes an older one's logs for its own finished passes.
 name=${CAMPAIGN_NAME:-main}
 mkdir -p logs/campaign

@@ -13,7 +13,7 @@ For every size, one round trip is:
 | `upload` | `files.upload()` until it resolves |
 | `head` | `files.head()` |
 | `download` | `files.download({ as: "stream" })` until the last byte is read and hashed |
-| `url-get` | A presigned GET URL fetched with plain `fetch()`, the path a browser takes. Signing is local and not timed. Its time to first byte is the cleanest network number in the run. |
+| `url-get` | A presigned GET URL fetched with plain `fetch()`, the path a browser takes. Getting the URL is not timed: it is local signing for the S3-style providers, and a call to the provider for Upstash (its signing service) and Convex (the file URL). Appwrite has no signed URLs, so it uses its permanent public `/view` URL on a public-read bucket. Its time to first byte is the cleanest network number in the run. |
 | `delete` | `files.delete()` |
 
 Then, once per round:
@@ -22,11 +22,11 @@ Then, once per round:
 |---|---|
 | `concurrent-upload`, `concurrent-download` | 16 objects of 100 KB in parallel, like a gallery page |
 | `burst-upload` | 32 uploads in parallel, reported separately |
-| `first-request` | A brand-new SDK client does one `head()` on an existing object, so it opens a new TCP and TLS connection, like the first request after a deploy |
-| `list-all` | Walk 1,000 objects under one prefix |
+| `first-request` | A brand-new SDK client does one `head()` on an existing object, so it opens a new TCP and TLS connection, like the first request after a deploy. Each sample also gets a fresh connection pool, since the fetch-based SDKs (Appwrite, Convex, Upstash) would otherwise reuse a warm one. |
+| `list-all` | Walk 1,000 objects under one prefix. Skipped for Convex, whose storage ids can't be listed by prefix. |
 | `signed-upload` | A 1 MB browser-style upload: `fetch()` PUT to a URL from `signedUploadUrl()`. Minting the URL is not timed. |
-| `range-get` | 256 KB from a random offset in a 10 MB object, like seeking in a video |
-| `copy` | `copy()` of a 10 MB object. Server-side on every provider. |
+| `range-get` | 256 KB from a random offset in a 10 MB object, like seeking in a video. Skipped where the SDK has no range reads (Appwrite, Upstash). |
+| `copy` | `copy()` of a 10 MB object, only on providers that copy server-side. Appwrite and Convex can't, so they skip it. |
 
 For the parallel tests, one sample is the whole batch: its time runs until every request finishes, and it counts as failed if any request in it fails. Their sample count and failure rate count batches, not requests.
 
@@ -37,7 +37,7 @@ A full run does 60 round trips at 1 KB and 100 KB, 30 at 1 MB, 20 at 10 MB, 8 at
 - Providers take turns, in a fresh random order every round, so a slow minute on the network hits all of them.
 - Warmup requests are discarded.
 - Every body is fresh random bytes and every download is SHA-256 checked, so deduplication or caching can't fake a result.
-- One attempt per measured request for everyone. The AWS SDK normally retries throttles and 5xx errors three times, which would hide failures inside its latency, so it runs with `AWS_MAX_ATTEMPTS=1` and files-sdk with `retries: 0`. Untimed setup, like creating the 1,000 objects to list, does retry.
+- One attempt per measured request for everyone. The AWS SDK normally retries throttles and 5xx errors three times, which would hide failures inside its latency, so it runs with `AWS_MAX_ATTEMPTS=1` and files-sdk with `retries: 0`. Upstash's SDK also retries three times with no setting to turn it off, so `scripts/patch-upstash-blob.mjs` sets its attempt count to 1 at install. Untimed setup, like creating the 1,000 objects to list, does retry.
 - Latency percentiles cover successful requests.
 - Raw samples are kept as JSON lines with the client location, Node version, files-sdk version, and code version.
 
@@ -50,6 +50,11 @@ A full run does 60 round trips at 1 KB and 100 KB, 30 at 1 MB, 20 at 10 MB, 8 at
 | Railway Buckets | iad | Runs on Tigris. |
 | Backblaze B2 | us-east-005 | |
 | Neon | aws us-east-1 | |
+| Bunny Storage | ny | Through Bunny's S3-compatible endpoint, which is in preview. Standard tier, one region. |
+| Appwrite | nyc | Appwrite Cloud, on a public-read bucket with default settings (encryption and antivirus on). |
+| Convex | aws us-east-1 | Production deployment. |
+| Upstash Blob | No region to choose | A private bucket. Upstash buckets are global and run on Cloudflare R2. |
+| Tigris | global (the default) | Private, Standard tier, created with `tigris mk`. A global bucket keeps data near where it is read. Railway Buckets also runs on Tigris, but pinned to iad. |
 
 | Client | Location | Network |
 |---|---|---|
@@ -62,11 +67,14 @@ A full run does 60 round trips at 1 KB and 100 KB, 30 at 1 MB, 20 at 10 MB, 8 at
 
 Ashburn sits next to most of the buckets, like an app on AWS us-east-1. The other locations show the same buckets from across the country and from Europe. The two Railway clients share a network with Railway Buckets; the other four don't. The home line's upload speed caps its 100 MB numbers.
 
-Each client ran three full passes. Lille's third was interrupted once, discarded, and run again in full. Passes from 2026-10-09 and 2026-10-15 are merged, so most locations span two days and different times of day. A client runs one benchmark process at a time.
+Each client ran three full passes on 2026-10-16 with all ten providers taking turns in the same runs, so every provider was measured over the same hours. A client runs one benchmark process at a time. The earlier five-provider runs from 2026-10-09 and 2026-10-15, which the first version of the site used, are kept in `results/archive/v1-five-providers/`.
 
 ## SDK notes
 
-- files-sdk sends every provider through `@aws-sdk/client-s3`, so client overhead is the same for all of them.
+- S3, R2, Railway, Backblaze, Neon, Bunny, and Tigris go through files-sdk's S3 path on `@aws-sdk/client-s3`, so client overhead is the same for all of them.
+- Appwrite uses files-sdk's Appwrite adapter, on `node-appwrite`.
+- Convex: files-sdk's Convex adapter only runs inside Convex functions, so `convex-app/` deploys a small Convex app that exposes it over authenticated HTTP actions, and `src/convex-http.ts` is the client side. Uploads go through Convex upload URLs, Convex's documented path for files from clients, and `upload` times both minting the URL and sending the file. Reads use the file URL Convex hands out.
+- Upstash Blob: files-sdk has no Upstash adapter, so `src/upstash-blob.ts` maps files-sdk's interface onto `@upstash/blob`, Upstash's own SDK.
 - `download` time to first byte is the time until the SDK yields the first chunk. Use `url-get` for the network's time to first byte.
 
 ## Data notes
@@ -75,14 +83,13 @@ Samples that overlap a stall of the client machine itself, or a window where two
 
 One Seattle pass stopped partway when the sandbox's disk failed and went read-only. That partial run was discarded and the pass was run again in full on a new sandbox.
 
-Appwrite was in the first runs and is not in the results: its free plan ran out of bandwidth partway through.
 
 ## Running every location
 
 To run the full campaign from every client location, `scripts/remote.sh` pushes, starts, and pulls runs on each machine, and `scripts/campaign.sh` runs the passes:
 
 ```sh
-scripts/campaign.sh 3 ms-a2 railway-ashburn railway-amsterdam tenki-seattle freestyle-sf boat-lille
+CAMPAIGN_NAME=v2 scripts/campaign.sh 3 ms-a2 railway-ashburn railway-amsterdam tenki-seattle freestyle-sf boat-lille
 ```
 
 ## Building the site
@@ -103,6 +110,8 @@ bun run dev      # or: bun run build, which writes a static site to site/out
 |---|---|
 | `src/bench.ts` | The benchmark runner |
 | `src/providers.ts` | One files-sdk client per provider, built from environment variables |
+| `src/convex-http.ts`, `src/upstash-blob.ts` | files-sdk adapters for Convex (over `convex-app/`) and Upstash Blob |
+| `convex-app/` | The Convex app the Convex adapter calls |
 | `src/report.ts` | Merges raw runs per location into `results/RESULTS.md` and `results/summary.json` |
 | `src/costs.ts` | The monthly cost model and its list prices |
 | `src/model.ts` | The shape the results views read: one value per metric, provider, and location |

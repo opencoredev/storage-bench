@@ -15,6 +15,7 @@ export const PROVIDER_COLORS: Record<string, string> = {
   appwrite: "oklch(0.72 0.19 350)",
   convex: "oklch(0.8 0.12 200)",
   upstash: "oklch(0.78 0.17 135)",
+  tigris: "oklch(0.86 0.05 280)",
 };
 export const colorOf = (providerId: string) => PROVIDER_COLORS[providerId] ?? "var(--muted-foreground)";
 

@@ -2,8 +2,8 @@ import { writeFile } from "node:fs/promises";
 import type { ProviderId } from "./providers.ts";
 
 /**
- * List prices as published on 2026-10-09. Workloads are in GB of 10^9 bytes. AWS documents S3 storage in binary
- * GB (2^30 bytes), so S3's stored amount is converted before its rate applies.
+ * List prices as published on 2026-10-09. Workloads are in GB of 10^9 bytes. AWS and Tigris document storage in
+ * binary GB (2^30 bytes), so their stored amount is converted before the rate applies.
  */
 const checkedOn = "2026-10-09";
 
@@ -131,6 +131,14 @@ const prices: readonly Price[] = [
     model: "$0.02/GB-month, $4.50 per 1M writes, $0.30 per 1M reads, egress free up to 1 TB/month then $0.02/GB",
     monthly: (w) => w.storedGb * 0.02 + (w.writes / 1e6) * 4.5 + (w.reads / 1e6) * 0.3 + over(w.egressGb, 1_000) * 0.02,
   },
+  {
+    id: "tigris",
+    label: "Tigris (Standard)",
+    source: "https://www.tigrisdata.com/pricing/, checked 2026-10-16",
+    model:
+      "$0.02/GB-month after 5 GB free (billed in binary GB, like S3), $0.005 per 1k writes after 10k, $0.0005 per 1k reads after 100k, egress free",
+    monthly: (w) => over(toGiB(w.storedGb), 5) * 0.02 + (over(w.writes, 10_000) / 1000) * 0.005 + (over(w.reads, 100_000) / 1000) * 0.0005,
+  },
 ];
 
 const usd = (n: number): string => (n >= 100 ? `$${Math.round(n).toLocaleString("en-US")}` : `$${n.toFixed(2)}`);
@@ -140,7 +148,7 @@ const lines = [
   "",
   `List prices checked ${checkedOn}. Storage, requests, and egress; no compute, support plans, or taxes.`,
   "",
-  "Workloads are in GB of 10^9 bytes. AWS documents S3 storage in binary GB (2^30 bytes), so S3's stored amount is converted first. Everything else, including S3 transfer, is priced assuming decimal GB, since the pricing pages don't define the unit.",
+  "Workloads are in GB of 10^9 bytes. AWS and Tigris document storage in binary GB (2^30 bytes), so their stored amounts are converted first. Everything else, including S3 transfer, is priced assuming decimal GB, since the pricing pages don't define the unit.",
   "",
   `| Provider | ${workloads.map((w) => w.name).join(" | ")} |`,
   `|---|${workloads.map(() => "---").join("|")}|`,

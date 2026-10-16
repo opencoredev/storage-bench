@@ -4,11 +4,12 @@ import { backblazeB2 } from "files-sdk/backblaze-b2";
 import { neon } from "files-sdk/neon";
 import { r2 } from "files-sdk/r2";
 import { s3 } from "files-sdk/s3";
+import { tigris } from "files-sdk/tigris";
 import { z } from "zod";
 import { convexHttp } from "./convex-http.ts";
 import { upstashBlob } from "./upstash-blob.ts";
 
-export const providerIds = ["aws-s3", "r2", "railway", "b2", "neon", "bunny", "appwrite", "convex", "upstash"] as const;
+export const providerIds = ["aws-s3", "r2", "railway", "b2", "neon", "bunny", "appwrite", "convex", "upstash", "tigris"] as const;
 export type ProviderId = (typeof providerIds)[number];
 
 export type Provider = {
@@ -79,6 +80,11 @@ const specs = {
   }),
   upstash: z.object({
     UPSTASH_BLOB_TOKEN: nonEmpty,
+  }),
+  tigris: z.object({
+    TIGRIS_STORAGE_BUCKET: nonEmpty,
+    TIGRIS_STORAGE_ACCESS_KEY_ID: nonEmpty,
+    TIGRIS_STORAGE_SECRET_ACCESS_KEY: nonEmpty,
   }),
 } satisfies Record<ProviderId, z.ZodType>;
 
@@ -259,6 +265,27 @@ const build = (id: ProviderId, env: Env): Provider | undefined => {
         // Upstash has no region to pick: buckets are global, on Cloudflare R2, with reads replicated to its CDN.
         region: "global",
         connect: () => new Files({ retries: 0, adapter: upstashBlob({ token: v.UPSTASH_BLOB_TOKEN }) }),
+      };
+    }
+    case "tigris": {
+      const e = specs.tigris.safeParse(env);
+      if (!e.success) return undefined;
+      const v = e.data;
+      return {
+        id,
+        label: "Tigris",
+        // Tigris's default: a global bucket that keeps data near where it is used. Railway Buckets also runs on
+        // Tigris, but pinned to iad.
+        region: "global",
+        connect: () =>
+          new Files({
+            retries: 0,
+            adapter: tigris({
+              bucket: v.TIGRIS_STORAGE_BUCKET,
+              accessKeyId: v.TIGRIS_STORAGE_ACCESS_KEY_ID,
+              secretAccessKey: v.TIGRIS_STORAGE_SECRET_ACCESS_KEY,
+            }),
+          }),
       };
     }
     default: {
