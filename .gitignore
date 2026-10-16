@@ -6,3 +6,4 @@ results/smoke
 logs/
 results/archive/
 .vercel
+tmp/

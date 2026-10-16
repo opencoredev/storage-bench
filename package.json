@@ -24,6 +24,7 @@
     "@aws-sdk/s3-request-presigner": "3.1148.0",
     "files-sdk": "3.0.0",
     "node-appwrite": "29.2.0",
+    "undici": "6.29.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

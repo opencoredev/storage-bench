@@ -14,7 +14,7 @@ passes=${1:?passes}
 shift
 locations=("$@")
 version=$(git rev-parse --short HEAD)
-providers=aws-s3,r2,railway,b2,neon
+providers=aws-s3,r2,railway,b2,neon,bunny,appwrite,convex
 mkdir -p logs/campaign
 
 say() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a logs/campaign/campaign.log; }

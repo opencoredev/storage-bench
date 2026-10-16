@@ -101,6 +101,29 @@ const prices: readonly Price[] = [
     model: "$0.023/GB-month, requests free, 500 GB/month egress per project then $0.10/GB (shared with Postgres traffic)",
     monthly: (w) => w.storedGb * 0.023 + over(w.egressGb, 500) * 0.1,
   },
+  {
+    id: "bunny",
+    label: "Bunny Storage (Standard, 1 region)",
+    source: "https://bunny.net/pricing/storage/ and https://bunny.net/pricing/cdn/ (Standard network), checked 2026-10-16",
+    model:
+      "$0.01/GB-month, requests and API egress free, $1 monthly minimum. Bunny's pricing assumes files are served through Bunny CDN, so egress is priced at its Europe and North America CDN rate of $0.01/GB",
+    monthly: (w) => Math.max(1, w.storedGb * 0.01 + w.egressGb * 0.01),
+  },
+  {
+    id: "appwrite",
+    label: "Appwrite (Pro plan)",
+    source: "https://appwrite.io/pricing (Compare plans), checked 2026-10-16",
+    model: "$25/month per project with 150 GB storage and 2 TB bandwidth, then $2.80 per 100 GB stored and $15 per 100 GB served; file operations are not billed per request",
+    monthly: (w) => 25 + over(w.storedGb, 150) * 0.028 + over(w.egressGb, 2_000) * 0.15,
+  },
+  {
+    id: "convex",
+    label: "Convex (Professional, 1 developer)",
+    source: "https://www.convex.dev/pricing, checked 2026-10-16",
+    model:
+      "$25 per developer per month with 100 GB file storage, 50 GB egress, and 25M function calls, then $0.03/GB stored, $0.12/GB served, and $2 per 1M calls. Each upload costs one function call to mint its upload URL; reads from file URLs are not function calls",
+    monthly: (w) => 25 + over(w.storedGb, 100) * 0.03 + over(w.egressGb, 50) * 0.12 + (over(w.writes, 25e6) / 1e6) * 2,
+  },
 ];
 
 const usd = (n: number): string => (n >= 100 ? `$${Math.round(n).toLocaleString("en-US")}` : `$${n.toFixed(2)}`);

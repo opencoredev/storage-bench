@@ -1,0 +1,16 @@
+{
+  "name": "storage-bench-convex",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "convex deploy"
+  },
+  "dependencies": {
+    "convex": "1.47.0",
+    "files-sdk": "3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "typescript": "7.0.2"
+  }
+}

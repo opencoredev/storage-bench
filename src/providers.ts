@@ -1,11 +1,13 @@
 import { Files } from "files-sdk";
+import { appwrite } from "files-sdk/appwrite";
 import { backblazeB2 } from "files-sdk/backblaze-b2";
 import { neon } from "files-sdk/neon";
 import { r2 } from "files-sdk/r2";
 import { s3 } from "files-sdk/s3";
 import { z } from "zod";
+import { convexHttp } from "./convex-http.ts";
 
-export const providerIds = ["aws-s3", "r2", "railway", "b2", "neon"] as const;
+export const providerIds = ["aws-s3", "r2", "railway", "b2", "neon", "bunny", "appwrite", "convex"] as const;
 export type ProviderId = (typeof providerIds)[number];
 
 export type Provider = {
@@ -17,6 +19,8 @@ export type Provider = {
   readonly connect: () => Files;
   /** Largest object the account's plan accepts, when the plan caps it. Bigger sizes are skipped, not failed. */
   readonly maxObjectBytes?: number;
+  /** False when the provider can't list by prefix, so the listing test is skipped rather than failed. */
+  readonly canList?: false;
 };
 
 const nonEmpty = z.string().min(1);
@@ -55,6 +59,22 @@ const specs = {
     NEON_REGION: nonEmpty,
     NEON_ACCESS_KEY_ID: nonEmpty,
     NEON_SECRET_ACCESS_KEY: nonEmpty,
+  }),
+  bunny: z.object({
+    BUNNY_STORAGE_ZONE: nonEmpty,
+    BUNNY_STORAGE_REGION: nonEmpty,
+    BUNNY_STORAGE_PASSWORD: nonEmpty,
+  }),
+  appwrite: z.object({
+    APPWRITE_ENDPOINT: z.url(),
+    APPWRITE_PROJECT_ID: nonEmpty,
+    APPWRITE_API_KEY: nonEmpty,
+    APPWRITE_BUCKET: nonEmpty,
+  }),
+  convex: z.object({
+    CONVEX_SITE_URL: z.url(),
+    CONVEX_BENCH_TOKEN: nonEmpty,
+    CONVEX_REGION: z.string().default("aws-us-east-1"),
   }),
 } satisfies Record<ProviderId, z.ZodType>;
 
@@ -163,6 +183,66 @@ const build = (id: ProviderId, env: Env): Provider | undefined => {
               secretAccessKey: v.NEON_SECRET_ACCESS_KEY,
             }),
           }),
+      };
+    }
+    case "bunny": {
+      const e = specs.bunny.safeParse(env);
+      if (!e.success) return undefined;
+      const v = e.data;
+      return {
+        id,
+        label: "Bunny Storage",
+        region: v.BUNNY_STORAGE_REGION,
+        // Bunny's S3-compatible endpoint (in preview), so Bunny runs on the same AWS SDK path as the other S3-style
+        // providers and gets presigned URLs. The zone name is the access key and the zone password the secret.
+        connect: () =>
+          new Files({
+            retries: 0,
+            adapter: s3({
+              bucket: v.BUNNY_STORAGE_ZONE,
+              region: v.BUNNY_STORAGE_REGION,
+              endpoint: `https://${v.BUNNY_STORAGE_REGION}-s3.storage.bunnycdn.com`,
+              forcePathStyle: true,
+              credentials: { accessKeyId: v.BUNNY_STORAGE_ZONE, secretAccessKey: v.BUNNY_STORAGE_PASSWORD },
+            }),
+          }),
+      };
+    }
+    case "appwrite": {
+      const e = specs.appwrite.safeParse(env);
+      if (!e.success) return undefined;
+      const v = e.data;
+      return {
+        id,
+        label: "Appwrite",
+        region: new URL(v.APPWRITE_ENDPOINT).hostname.split(".")[0] ?? v.APPWRITE_ENDPOINT,
+        // The bucket allows public reads, so url() returns Appwrite's permanent /view link; it has no signed URLs.
+        connect: () =>
+          new Files({
+            retries: 0,
+            adapter: appwrite({
+              bucket: v.APPWRITE_BUCKET,
+              endpoint: v.APPWRITE_ENDPOINT,
+              projectId: v.APPWRITE_PROJECT_ID,
+              key: v.APPWRITE_API_KEY,
+              public: true,
+            }),
+          }),
+      };
+    }
+    case "convex": {
+      const e = specs.convex.safeParse(env);
+      if (!e.success) return undefined;
+      const v = e.data;
+      return {
+        id,
+        label: "Convex",
+        region: v.CONVEX_REGION,
+        // files-sdk's Convex adapter runs inside Convex functions, so a small Convex app (convex-app/) wraps it
+        // over HTTP. Uploads use Convex upload URLs and reads use Convex file URLs; see src/convex-http.ts.
+        connect: () => new Files({ retries: 0, adapter: convexHttp({ siteUrl: v.CONVEX_SITE_URL, token: v.CONVEX_BENCH_TOKEN }) }),
+        // Convex assigns storage ids, which can't be listed by a caller-chosen prefix.
+        canList: false,
       };
     }
     default: {

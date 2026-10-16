@@ -3,6 +3,7 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { parseArgs } from "node:util";
 import type { Files } from "files-sdk";
+import { Agent, getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { z } from "zod";
 import { isProviderId, loadProviders, type Provider, type ProviderId } from "./providers.ts";
 
@@ -52,7 +53,7 @@ type Op =
   | "signed-upload"
   /** 256 KB from the middle of a 10 MB object, like seeking in a video. */
   | "range-get"
-  /** copy() of a 10 MB object. Server-side on every provider here. */
+  /** copy() of a 10 MB object, on providers that copy server-side. */
   | "copy";
 
 export type Sample = {
@@ -204,9 +205,17 @@ const roundTrip = async ({ p, files, size, round }: { p: Provider; files: Files;
     return { ttfbMs };
   });
 
-  // Signing is local; time only what a browser would do with the URL.
-  const url = await files.url(key, { expiresIn: 600 });
-  await timed({ ...base, op: "url-get" }, async () => {
+  // Signing is local; time only what a browser would do with the URL. Providers without signed URLs use
+  // their permanent public URL if they have one, and skip this step otherwise.
+  const caps = files.capabilities;
+  let url: string | undefined;
+  try {
+    url = caps.signedUrl.supported ? await files.url(key, { expiresIn: 600 }) : caps.publicUrl ? await files.url(key) : undefined;
+  } catch (err) {
+    // Some adapters fetch the URL from the provider; a failed lookup is a failed read, not a crashed run.
+    await record({ ...base, op: "url-get", ms: 0, ok: false, error: `url: ${errorText(err)}` });
+  }
+  if (url !== undefined) await timed({ ...base, op: "url-get" }, async () => {
     const start = performance.now();
     const res = await fetch(url);
     if (!res.ok || res.body === null) throw new Error(`HTTP ${res.status}`);
@@ -288,6 +297,7 @@ const withSetupRetries = async (fn: () => Promise<unknown>): Promise<void> => {
 
 /** Seeds N small objects under one prefix, then times walking the whole listing. */
 const listTest = async ({ p, files }: { p: Provider; files: Files }) => {
+  if (p.canList === false) return;
   const prefix = `l${keyTag}${p.id.replace(/[^a-z0-9]/g, "")}-`;
   const keys = Array.from({ length: profile.listObjects }, (_, i) => `${prefix}${i.toString().padStart(4, "0")}`);
   const seeded: string[] = [];
@@ -384,21 +394,34 @@ const extrasRound = async ({ p, files, round }: { p: Provider; files: Files; rou
         return { ttfbMs };
       });
     }
-    const dst = nextKey();
-    await timed({ provider: p.id, op: "copy", size: "10MB", round, bytes: COPY_SIZE }, async () => {
-      await files.copy(src, dst);
-    });
-    await files.delete(dst).catch(() => undefined);
+    // Only server-side copies: a client-side fallback would time a download plus an upload instead.
+    if (caps.serverSideCopy) {
+      const dst = nextKey();
+      await timed({ provider: p.id, op: "copy", size: "10MB", round, bytes: COPY_SIZE }, async () => {
+        await files.copy(src, dst);
+      });
+      await files.delete(dst).catch(() => undefined);
+    }
   } finally {
     await files.delete(src).catch(() => undefined);
   }
 };
 
 const firstRequest = async ({ p, round, key }: { p: Provider; round: number; key: string }) => {
-  const files = p.connect();
-  await timed({ provider: p.id, op: "first-request", size: "1KB", round, bytes: 0 }, async () => {
-    await files.head(key);
-  });
+  // The AWS SDK opens new sockets per client, but fetch-based adapters (Appwrite, Convex) share Node's global
+  // pool, which would hand them a warm connection. A fresh pool per sample makes their first request cold too.
+  const shared = getGlobalDispatcher();
+  const pool = new Agent();
+  setGlobalDispatcher(pool);
+  try {
+    const files = p.connect();
+    await timed({ provider: p.id, op: "first-request", size: "1KB", round, bytes: 0 }, async () => {
+      await files.head(key);
+    });
+  } finally {
+    setGlobalDispatcher(shared);
+    await pool.close();
+  }
 };
 
 const clientInfo = async (): Promise<unknown> => {

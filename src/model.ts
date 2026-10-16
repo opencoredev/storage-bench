@@ -39,6 +39,9 @@ export const providerInfo: Record<ProviderId, { label: string; place: string; re
   railway: { label: "Railway Buckets", place: "Virginia", region: "iad", at: [38.95, -77.45] },
   b2: { label: "Backblaze B2", place: "Eastern US", region: "us-east-005", at: [38.96, -77.36] },
   neon: { label: "Neon", place: "Virginia", region: "aws us-east-1", at: [39.04, -77.49] },
+  bunny: { label: "Bunny Storage", place: "New York", region: "ny", at: [40.71, -74.01] },
+  appwrite: { label: "Appwrite", place: "New York", region: "nyc", at: [40.71, -74.01] },
+  convex: { label: "Convex", place: "Virginia", region: "aws us-east-1", at: [39.04, -77.49] },
 };
 
 export const clientIds = ["railway-ashburn", "ms-a2", "freestyle-sf", "tenki-seattle", "railway-amsterdam", "boat-lille"] as const;
