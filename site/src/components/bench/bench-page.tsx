@@ -70,6 +70,7 @@ export function BenchPage({ results }: { results: Results }) {
 
   const matrixFor = (metric: Metric): MatrixRow[] => {
     const order = rowsForClient(metric, clients[0]?.id ?? "").map((r) => r.id);
+    const rank = (id: string) => (order.includes(id) ? order.indexOf(id) : order.length);
     return providers
       .map((p) => ({
         id: p.id,
@@ -79,7 +80,8 @@ export function BenchPage({ results }: { results: Results }) {
           return cell ? { value: cell.value, text: formatValue(metric, cell.value) } : null;
         }),
       }))
-      .sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+      // Providers without a result in the ranking column (a test they can't run) go last, not first.
+      .sort((a, b) => rank(a.id) - rank(b.id));
   };
 
   function rowsForClient(metric: Metric, id: string): BarRow[] {
