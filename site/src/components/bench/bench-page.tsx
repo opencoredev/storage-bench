@@ -170,7 +170,7 @@ export function BenchPage({ results }: { results: Results }) {
           <Bars rows={costRows} empty="No prices." />
           {/* Railway's bucket bill assumes direct uploads; see the Railway model in src/costs.ts. */}
           <p className="mt-2 max-w-prose text-xs text-pretty text-muted-foreground">
-            Railway: uploads that go through a Railway service are billed as service egress ($0.05/GB), since buckets aren't on its private network yet. Through a service, the media workload costs about $650.
+            Railway: uploads that go through a Railway service are billed as service egress ($0.05/GB), since buckets aren't on its private network yet. If the media workload's 10 TB is uploaded through a service each month, it costs about $650 instead of $150.
           </p>
         </Chart>
       </main>

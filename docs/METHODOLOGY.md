@@ -4,7 +4,12 @@ How storage-bench measures each provider, where everything ran, and what to keep
 
 ## What it measures
 
-Each object size stands in for a real payload: 1 KB (JSON), 100 KB (avatars), 1 MB (photos), 10 MB (PDFs, audio), and 100 MB (video, uploaded with multipart at the SDK's default 5 MiB parts, 4 in flight).
+Each object size stands in for a real payload: 1 KB (JSON), 100 KB (avatars), 1 MB (photos), 10 MB (PDFs, audio), and 100 MB (video). How 100 MB uploads are sent depends on each provider's own SDK, so upload throughput reflects both the service and its client:
+
+- S3, R2, Railway, Backblaze, Neon, Bunny, and Tigris: multipart through the AWS SDK, 5 MiB parts, 4 in flight.
+- Upstash: multipart through `@upstash/blob`, which sends one part at a time.
+- Appwrite: `node-appwrite`'s chunked upload, 5 MiB chunks: the first on its own, then up to 8 in flight.
+- Convex: one POST of the whole file to a Convex upload URL, which is how Convex accepts files.
 
 For every size, one round trip is:
 
@@ -37,7 +42,7 @@ A full run does 60 round trips at 1 KB and 100 KB, 30 at 1 MB, 20 at 10 MB, 8 at
 - Providers take turns, in a fresh random order every round, so a slow minute on the network hits all of them.
 - Warmup requests are discarded.
 - Every body is fresh random bytes and every download is SHA-256 checked, so deduplication or caching can't fake a result.
-- One attempt per measured request for everyone. The AWS SDK normally retries throttles and 5xx errors three times, which would hide failures inside its latency, so it runs with `AWS_MAX_ATTEMPTS=1` and files-sdk with `retries: 0`. Upstash's SDK also retries three times with no setting to turn it off, so `scripts/patch-upstash-blob.mjs` sets its attempt count to 1 at install. Untimed setup, like creating the 1,000 objects to list, does retry.
+- One attempt per measured request for everyone. The AWS SDK normally retries throttles and 5xx errors three times, which would hide failures inside its latency, so it runs with `AWS_MAX_ATTEMPTS=1` and files-sdk with `retries: 0`. Upstash's SDK also retries requests three times with no setting to turn it off, so `scripts/patch-upstash-blob.mjs` sets its attempt count to 1 at install. During these runs the patch missed one more retry path: when Upstash's credential service answered 429 or 503, the SDK could ask for credentials up to three more times. That only happens when credentials are first fetched or refreshed, not on every request; the patch now disables it too. The SDK's single re-request after refreshing an expired credential is kept, since that is how its credentials work rather than a retry of a failed request. Untimed setup, like creating the 1,000 objects to list, does retry.
 - Latency percentiles cover successful requests.
 - Raw samples are kept as JSON lines with the client location, Node version, files-sdk version, and code version.
 
@@ -61,13 +66,13 @@ A full run does 60 round trips at 1 KB and 100 KB, 30 at 1 MB, 20 at 10 MB, 8 at
 | `railway-ashburn` | Ashburn, Virginia | Railway (us-east4) |
 | `ms-a2` | Florida | A Minisforum MS-A2 on a home AT&T line |
 | `freestyle-sf` | San Francisco | Freestyle VM |
-| `tenki-seattle` | Seattle | Tenki sandbox VM. The 2026-10-09 pass ran on Wowrack's network (AS23033) and both 2026-10-15 passes on Luxor's (AS19538), Tenki's parent company. The last pass ran on a replacement sandbox after the first sandbox's disk failed. |
+| `tenki-seattle` | Seattle | Tenki sandbox VM on Luxor's network (AS19538) |
 | `railway-amsterdam` | Amsterdam | Railway (europe-west4) |
 | `boat-lille` | Lille, France | boat sandbox (OVH) |
 
 Ashburn sits next to most of the buckets, like an app on AWS us-east-1. The other locations show the same buckets from across the country and from Europe. The two Railway clients share a network with Railway Buckets; the other four don't. The home line's upload speed caps its 100 MB numbers.
 
-Each client ran three full passes on 2026-10-16 with all ten providers taking turns in the same runs, so every provider was measured over the same hours. A client runs one benchmark process at a time. The earlier five-provider runs from 2026-10-09 and 2026-10-15, which the first version of the site used, are kept in `results/archive/v1-five-providers/`.
+Each client ran three passes on 2026-10-16 (San Francisco's third was cut short; see the data notes) with all ten providers taking turns in the same runs, so every provider was measured over the same hours. A client runs one benchmark process at a time. The earlier five-provider runs from 2026-10-09 and 2026-10-15, which the first version of the site used, are kept in `results/archive/v1-five-providers/`.
 
 ## SDK notes
 
@@ -81,7 +86,12 @@ Each client ran three full passes on 2026-10-16 with all ten providers taking tu
 
 Samples that overlap a stall of the client machine itself, or a window where two runs overlapped, are dropped. Each window and its reason is in [results/exclusions.json](../results/exclusions.json).
 
-One Seattle pass stopped partway when the sandbox's disk failed and went read-only. That partial run was discarded and the pass was run again in full on a new sandbox.
+Three things went wrong during the 2026-10-16 runs:
+
+- The Railway account that hosts the Ashburn and Amsterdam machines hit its monthly compute spending limit. Railway paused both machines and also refused requests to its bucket with Access Denied until the limit was raised. Railway Buckets samples from that window are dropped for every location, since they measure the account limit rather than the service. Amsterdam's third pass was cut off by the pause twice, so it was set aside and run again in full.
+- San Francisco's third pass hung on one 100 MB request for over 30 minutes, with no response and no error. The pass was stopped there and the samples it had already recorded were kept, so San Francisco has slightly fewer samples for the tests that come after the 100 MB round.
+- Partial runs that were stopped to add a provider are kept out of the results.
+
 
 
 ## Running every location
@@ -89,7 +99,7 @@ One Seattle pass stopped partway when the sandbox's disk failed and went read-on
 To run the full campaign from every client location, `scripts/remote.sh` pushes, starts, and pulls runs on each machine, and `scripts/campaign.sh` runs the passes:
 
 ```sh
-CAMPAIGN_NAME=v2 scripts/campaign.sh 3 ms-a2 railway-ashburn railway-amsterdam tenki-seattle freestyle-sf boat-lille
+CAMPAIGN_NAME=v3 scripts/campaign.sh 3 ms-a2 railway-ashburn railway-amsterdam tenki-seattle freestyle-sf boat-lille
 ```
 
 ## Building the site

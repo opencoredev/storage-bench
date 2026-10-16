@@ -1,12 +1,23 @@
-// @upstash/blob retries GET, HEAD, PUT and DELETE up to 3 times on 5xx, 429 and dropped connections, and
-// retries its signing calls the same way, with no option to turn it off. Every provider in the benchmark runs
-// with retries off, so this sets the SDK's attempt count to 1.
+// @upstash/blob retries GET, HEAD, PUT and DELETE up to 3 times on 5xx, 429 and dropped connections, retries its
+// signing calls the same way, and retries credential minting up to 3 more times on 429 or 503, with no option to
+// turn any of it off. Every provider in the benchmark runs with retries off, so this sets all of them to one attempt.
+// The SDK's single re-request after refreshing an expired credential is kept: it is how its credentials work, not a
+// retry of a failed request.
 import { readFile, writeFile } from "node:fs/promises";
+
+const edits = [
+  ["RETRY_ATTEMPTS = 3;", "RETRY_ATTEMPTS = 1;"],
+  ["if (attempt < 3) {", "if (attempt < 0) {"],
+];
 
 for (const build of ["dist/index.js", "dist/index.cjs"]) {
   const file = new URL(`../node_modules/@upstash/blob/${build}`, import.meta.url);
-  const src = await readFile(file, "utf8").catch(() => undefined);
-  if (src === undefined || src.includes("RETRY_ATTEMPTS = 1;")) continue;
-  if (!src.includes("RETRY_ATTEMPTS = 3;")) throw new Error(`patch-upstash-blob: retry constant not found in ${build}; check the SDK version`);
-  await writeFile(file, src.replace("RETRY_ATTEMPTS = 3;", "RETRY_ATTEMPTS = 1;"));
+  let src = await readFile(file, "utf8").catch(() => undefined);
+  if (src === undefined) continue;
+  for (const [from, to] of edits) {
+    if (src.includes(to)) continue;
+    if (!src.includes(from)) throw new Error(`patch-upstash-blob: "${from}" not found in ${build}; check the SDK version`);
+    src = src.replace(from, to);
+  }
+  await writeFile(file, src);
 }

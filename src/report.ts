@@ -37,8 +37,14 @@ const args = parseArgs({
   },
 });
 
-/** Time windows where a client machine itself stalled (not the provider). Samples overlapping them are dropped. */
-const exclusionSchema = z.array(z.object({ client: z.string(), from: z.iso.datetime(), to: z.iso.datetime(), reason: z.string() }));
+/**
+ * Time windows where a client machine itself stalled, or where an account-side limit blocked a provider (not the
+ * provider's own service). Samples overlapping them are dropped. `client: "*"` matches every client, and `provider`
+ * narrows a window to one provider.
+ */
+const exclusionSchema = z.array(
+  z.object({ client: z.string(), provider: z.string().optional(), from: z.iso.datetime(), to: z.iso.datetime(), reason: z.string() }),
+);
 const loadExclusions = async (): Promise<z.infer<typeof exclusionSchema>> => {
   try {
     return exclusionSchema.parse(JSON.parse(await readFile(args.values.exclusions, "utf8")));
@@ -172,7 +178,13 @@ const main = async () => {
     const overlapsExclusion = (s: Sample): boolean => {
       const end = Date.parse(s.at);
       const start = end - s.ms;
-      return exclusions.some((x) => x.client === meta.client && start < Date.parse(x.to) && end > Date.parse(x.from));
+      return exclusions.some(
+        (x) =>
+          (x.client === "*" || x.client === meta.client) &&
+          (x.provider === undefined || x.provider === s.provider) &&
+          start < Date.parse(x.to) &&
+          end > Date.parse(x.from),
+      );
     };
     const measured = folded.filter((s) => {
       if (!overlapsExclusion(s)) return !s.error?.startsWith("seed failed");
@@ -190,7 +202,8 @@ const main = async () => {
     lines.push(`- **${m.client}** (${[m.location?.region, m.location?.org].filter(Boolean).join(", ")}), run ${m.runId}, Node ${m.node}, files-sdk ${m.filesSdk}`);
   }
   for (const x of exclusions) {
-    lines.push(`- Excluded ${excluded.get(x.client) ?? 0} samples from **${x.client}** between ${x.from} and ${x.to}: ${x.reason}`);
+    const who = `${x.provider ? `${x.provider} on ` : ""}${x.client === "*" ? "every client" : `**${x.client}**`}`;
+    lines.push(`- Excluded samples from ${who} between ${x.from} and ${x.to}: ${x.reason}`);
   }
   const clients = [...new Set(rows.map((r) => r.client))];
   for (const client of clients) {

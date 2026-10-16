@@ -16,5 +16,12 @@
     "from": "2026-10-15T22:05:48.000Z",
     "to": "2026-10-15T22:06:35.000Z",
     "reason": "A campaign restart briefly started a second run on the same machine. The duplicate was stopped and its data deleted; samples from the surviving run during the overlap are dropped."
+  },
+  {
+    "client": "*",
+    "provider": "railway",
+    "from": "2026-10-16T20:45:00.000Z",
+    "to": "2026-10-16T22:30:00.000Z",
+    "reason": "The Railway account running two of the test machines hit its monthly compute spending limit. Railway paused its deployments and also returned Access Denied for its bucket until the limit was raised, so Railway Buckets samples in this window measure the account limit, not the service."
   }
 ]
