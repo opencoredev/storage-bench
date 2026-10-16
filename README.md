@@ -2,7 +2,7 @@
   <a href="https://x.com/leodev"><img alt="Follow @leodev on X" src="https://shieldcn.dev/x/follow/leodev.svg?variant=branded&mode=dark" /></a>
 </p>
 
-storage-bench measures how fast Amazon S3, Cloudflare R2, Railway Buckets, Backblaze B2, and Neon are for the things apps actually do, and what each costs per month. Every provider runs through the same SDK ([files-sdk](https://files-sdk.dev) 3.0.0) on Node 24, from six places: Ashburn, a home line in Florida, San Francisco, Seattle, Amsterdam, and Lille.
+storage-bench measures how fast ten object storage providers are for the things apps actually do, and what each costs per month: Amazon S3, Cloudflare R2, Railway Buckets, Backblaze B2, Neon, Bunny Storage, Appwrite, Convex, Upstash Blob, and Tigris. Every provider runs through the same SDK ([files-sdk](https://files-sdk.dev) 3.0.0) on Node 24, side by side in the same runs, from six places: Ashburn, a home line in Florida, San Francisco, Seattle, Amsterdam, and Lille.
 
 [See the results](https://storage-bench.vercel.app) · [Read the methodology](docs/METHODOLOGY.md) · [Every number](results/RESULTS.md)
 
@@ -12,20 +12,24 @@ Distance decides most of it, so the order changes with where your app runs. Medi
 
 | From | Fastest | Slowest |
 |---|---|---|
-| Ashburn, Virginia | Railway 8 ms, B2 11 ms | R2 76 ms |
-| Florida home line | Railway 40 ms, B2 45 ms | R2 129 ms |
-| San Francisco | S3 110 ms, Railway 123 ms | B2 221 ms |
-| Amsterdam | R2 200 ms, Railway 213 ms | S3 310 ms |
+| Ashburn, Virginia | Tigris 20 ms, Backblaze B2 21 ms | Appwrite 104 ms |
+| Florida home line | Convex 77 ms, Upstash 111 ms | Bunny 177 ms |
+| San Francisco | Tigris 110 ms, Convex 125 ms | Neon 361 ms |
+| Amsterdam | Tigris 26 ms, Convex 141 ms | Amazon S3 321 ms |
+
+Tigris and Upstash have no region to pick. Tigris's default global bucket keeps each file near where it was written, so from Amsterdam or San Francisco it behaves like a nearby bucket, while every other provider here sits in the eastern US. That is how Tigris works by default, and it is why it leads most charts.
 
 Monthly cost from list prices, for 500 GB stored, 2 TB served, 5M uploads, and 50M reads:
 
-| Railway Buckets | Backblaze B2 | Cloudflare R2 | Neon | Amazon S3 |
-|---|---|---|---|---|
-| $7.50 | $8.41 | $39.75 | $162 | $227 |
+| Railway | Backblaze B2 | Bunny | Appwrite | R2 | Tigris | Upstash | Neon | S3 | Convex |
+|---|---|---|---|---|---|---|---|---|---|
+| $7.50 | $8.41 | $25 | $34.80 | $39.75 | $59.11 | $67.50 | $162 | $227 | $271 |
 
-With no retries, Backblaze B2 failed 54 of 3,888 upload attempts (1.4%), from every location: 27 single uploads and 27 parallel batches, where a batch fails if any upload in it does. Railway had no failures, and S3, R2, and Neon had two or three each.
+Railway's price assumes uploads go straight to the bucket; uploads sent through a Railway service are billed as service egress.
 
-Two of the six test machines run on Railway's own network, which may favor Railway Buckets. The site marks them, and every other caveat is in the [methodology](docs/METHODOLOGY.md).
+With no retries for anyone, Tigris failed 25 of 3,883 upload attempts and Backblaze B2 22, mostly dropped connections. The other providers failed six or fewer, and Bunny none.
+
+Two of the six test machines run on Railway's network, which may favor Railway Buckets. The site marks them, and every other caveat, including how each provider was set up, is in the [methodology](docs/METHODOLOGY.md).
 
 ## Run it
 

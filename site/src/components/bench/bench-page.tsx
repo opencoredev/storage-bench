@@ -147,7 +147,8 @@ export function BenchPage({ results }: { results: Results }) {
       <p className="pt-1 pb-2 text-xs text-muted-foreground">
         {all || onRailway(client)
           ? "Ashburn and Amsterdam run on Railway's own network, which may favor Railway Buckets. The other four don't."
-          : `${client.label}: ${client.host === "Home server" ? "a home internet connection" : `a ${client.host} machine`}, not on Railway's network.`}
+          : `${client.label}: ${client.host === "Home server" ? "a home internet connection" : `a ${client.host} machine`}, not on Railway's network.`}{" "}
+        Every bucket is in the eastern US except Tigris and Upstash, which have no region to pick. Tigris keeps each file near where it was written, so it behaves like a nearby bucket from every location.
       </p>
 
       <main className="pt-2">

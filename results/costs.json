@@ -81,6 +81,61 @@
         161.5,
         5180
       ]
+    },
+    {
+      "id": "bunny",
+      "label": "Bunny Storage (Standard, 1 region)",
+      "model": "$0.01/GB-month, requests and API egress free, $1 monthly minimum. Bunny's pricing assumes files are served through Bunny CDN, so egress is priced at its Europe and North America CDN rate of $0.01/GB",
+      "source": "https://bunny.net/pricing/storage/ and https://bunny.net/pricing/cdn/ (Standard network), checked 2026-10-16",
+      "monthly": [
+        1,
+        25,
+        600
+      ]
+    },
+    {
+      "id": "appwrite",
+      "label": "Appwrite (Pro plan)",
+      "model": "$25/month per project with 150 GB storage and 2 TB bandwidth, then $2.80 per 100 GB stored and $15 per 100 GB served; file operations are not billed per request",
+      "source": "https://appwrite.io/pricing (Compare plans), checked 2026-10-16",
+      "monthly": [
+        25,
+        34.8,
+        7500.8
+      ]
+    },
+    {
+      "id": "convex",
+      "label": "Convex (Professional, 1 developer)",
+      "model": "$25 per developer per month with 100 GB file storage, 50 GB egress, and 25M function calls, then $0.03/GB stored, $0.12/GB served, and $2 per 1M calls. Each upload costs one function call to mint its upload URL; reads from file URLs are not function calls",
+      "source": "https://www.convex.dev/pricing, checked 2026-10-16",
+      "monthly": [
+        25,
+        271,
+        6316
+      ]
+    },
+    {
+      "id": "upstash",
+      "label": "Upstash Blob (pay as you go)",
+      "model": "$0.02/GB-month, $4.50 per 1M writes, $0.30 per 1M reads, egress free up to 1 TB/month then $0.02/GB",
+      "source": "https://upstash.com/pricing/blob, checked 2026-10-16",
+      "monthly": [
+        0.95,
+        67.5,
+        1420
+      ]
+    },
+    {
+      "id": "tigris",
+      "label": "Tigris (Standard)",
+      "model": "$0.02/GB-month after 5 GB free (billed in binary GB, like S3), $0.005 per 1k writes after 10k, $0.0005 per 1k reads after 100k, egress free",
+      "source": "https://www.tigrisdata.com/pricing/, checked 2026-10-16",
+      "monthly": [
+        0.9862645149230957,
+        59.11322574615478,
+        536.0645149230958
+      ]
     }
   ]
 }
