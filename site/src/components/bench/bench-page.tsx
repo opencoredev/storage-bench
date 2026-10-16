@@ -166,6 +166,10 @@ export function BenchPage({ results }: { results: Results }) {
             <Chips label="Workload" value={workload} onChange={setWorkload} options={results.costs.workloads.map((wl, i) => ({ id: String(i), label: wl.name }))} />
           </div>
           <Bars rows={costRows} empty="No prices." />
+          {/* Railway's bucket bill assumes direct uploads; see the Railway model in src/costs.ts. */}
+          <p className="mt-2 max-w-prose text-xs text-pretty text-muted-foreground">
+            Railway: uploads that go through a Railway service are billed as service egress ($0.05/GB), since buckets aren't on its private network yet. Through a service, the media workload costs about $650.
+          </p>
         </Chart>
       </main>
 

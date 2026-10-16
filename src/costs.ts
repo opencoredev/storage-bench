@@ -80,7 +80,7 @@ const prices: readonly Price[] = [
     label: "Railway Buckets",
     source: "https://docs.railway.com/storage-buckets/billing",
     model:
-      "$0.015/GB-month, requests and egress free. The Free plan covers up to 10 GB-month with its $1 monthly credit; Hobby ($5/month, counted toward usage) caps storage at 1 TB; Pro ($20/month, counted toward usage) has no cap",
+      "$0.015/GB-month, requests and egress free. The Free plan covers up to 10 GB-month with its $1 monthly credit; Hobby ($5/month, counted toward usage) caps storage at 1 TB; Pro ($20/month, counted toward usage) has no cap. This assumes uploads go straight to the bucket; uploads sent through a Railway service are billed as service egress at $0.05/GB (railway.com/pricing), since buckets are not on the private network yet",
     monthly: (w) => {
       const usage = w.storedGb * 0.015;
       if (w.storedGb <= 10) return over(usage, 1);
