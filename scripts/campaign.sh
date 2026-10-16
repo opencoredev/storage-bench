@@ -15,6 +15,8 @@ shift
 locations=("$@")
 version=$(git rev-parse --short HEAD)
 providers=aws-s3,r2,railway,b2,neon,bunny,appwrite,convex
+# Names this campaign's passes, so a new campaign never mistakes an older one's logs for its own finished passes.
+name=${CAMPAIGN_NAME:-main}
 mkdir -p logs/campaign
 
 say() { echo "[$(date -u +%H:%M:%S)] $*" | tee -a logs/campaign/campaign.log; }
@@ -49,7 +51,7 @@ run() {
 worker() {
   local loc first
   IFS=: read -r loc first <<<"$1"
-  for pass in $(seq "${first:-1}" "$passes"); do run "$loc" "p$pass-main"; done
+  for pass in $(seq "${first:-1}" "$passes"); do run "$loc" "p$pass-$name"; done
   say "$loc finished all passes"
 }
 
